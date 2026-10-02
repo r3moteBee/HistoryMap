@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+  History Map — the map page (opened from the toolbar button).
+  Layout: options sidebar (left) + graph stage (right). All behavior lives in map.js.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>History Map</title>
+  <link rel="stylesheet" href="map.css">
+</head>
+<body>
+  <!-- ===== Options sidebar (collapsible) ===== -->
+  <aside id="sidebar">
+    <header>
+      <img src="icons/icon-32.png" alt="" width="22" height="22">
+      <h1>History Map</h1>
+    </header>
+
+    <section class="controls">
+      <label class="field">
+        <span>Time range</span>
+        <select id="range">
+          <option value="today">Today</option>
+          <option value="24h">Last 24 hours</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="all">All time</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Layout</span>
+        <select id="layoutMode">
+          <option value="lr">Left → right</option>
+          <option value="td">Top → down</option>
+          <option value="force">Force-directed</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Default node shape</span>
+        <select id="defaultShape"></select>
+      </label>
+      <label class="toggle"><input type="checkbox" id="groupBySite"> Group pages by site</label>
+      <label class="toggle"><input type="checkbox" id="showNeighbors"> Show links to other sites</label>
+      <label class="toggle"><input type="checkbox" id="showLabels"> Show labels</label>
+    </section>
+
+    <section class="domains">
+      <div class="domains-head">
+        <span>Filter by site</span>
+        <span>
+          <button type="button" id="selAll" class="link">All</button>
+          <button type="button" id="selNone" class="link">None</button>
+        </span>
+      </div>
+      <input id="domainSearch" type="search" placeholder="Search sites…" autocomplete="off">
+      <ul id="domainList"></ul>
+    </section>
+
+    <footer>
+      <div id="stats"></div>
+      <div class="buttons">
+        <button type="button" class="btn" id="refresh">Refresh</button>
+        <button type="button" class="btn" id="relayout">Re-layout</button>
+        <button type="button" class="btn" id="exportData" title="Export history, notes and styles as JSON">Export data</button>
+        <button type="button" class="btn" id="importData">Import</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+        <button type="button" class="btn danger" id="clearAll">Clear…</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ===== Graph stage ===== -->
+  <main id="stage">
+    <svg id="graph" role="img" aria-label="Browsing history graph"></svg>
+
+    <div id="empty" hidden>
+      <h2>Nothing to map yet</h2>
+      <p>Browse a few pages, or widen the time range or site filter.</p>
+    </div>
+
+    <!-- Top-left map controls: sidebar toggle, zoom, image export -->
+    <div id="mapControls">
+      <button type="button" class="icon-btn" id="sideToggle" aria-controls="sidebar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/><path class="chev" d="M11 6l-2 2 2 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="btn-group" role="group" aria-label="Zoom">
+        <button type="button" id="zoomIn" title="Zoom in (+)" aria-label="Zoom in">+</button>
+        <button type="button" id="zoomOut" title="Zoom out (−)" aria-label="Zoom out">−</button>
+        <button type="button" id="zoomFit" title="Fit to screen (0)" aria-label="Fit to screen"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/></svg></button>
+      </div>
+      <div id="exportCtl">
+        <button type="button" class="icon-btn" id="exportBtn" title="Save map as image or PDF" aria-label="Save map as image or PDF" aria-haspopup="menu" aria-expanded="false">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 11.5v2h11v-2"/></svg>
+        </button>
+        <div id="exportMenu" class="popover" role="menu" hidden>
+          <button type="button" role="menuitem" data-fmt="svg">SVG<small>Vector — sharp at any size; Word, Keynote, Illustrator</small></button>
+          <button type="button" role="menuitem" data-fmt="png">PNG<small>High-resolution image (2×)</small></button>
+          <button type="button" role="menuitem" data-fmt="pdf">Print / Save as PDF…<small>Fits the map to one page</small></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Node details (filled in by map.js) -->
+    <div id="detail" class="popover" hidden></div>
+
+    <div id="legend">
+      <span><svg width="44" height="12"><path d="M2 6H36" class="lg"/><path d="M30 1L41 6L30 11L32.5 6Z" class="lg-head"/></svg> first time you reached a page</span>
+      <span><svg width="44" height="12"><path d="M2 6H36" class="lg dash"/><path d="M30 1L41 6L30 11L32.5 6Z" class="lg-head"/></svg> revisit / jump back</span>
+      <span><svg width="44" height="12"><path d="M8 6H36" class="lg"/><path d="M2 2H8L11 4.5V10H2Z" class="lg-tab"/><path d="M30 1L41 6L30 11L32.5 6Z" class="lg-head"/></svg> opened in a new tab</span>
+      <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" class="lg-note"/></svg> has a note</span>
+      <span><span id="legendFlow"></span> · node size = visits · click a node to style it or its downstream trail</span>
+    </div>
+  </main>
+
+  <!-- Holds the export SVG while printing (see "Print / Save as PDF") -->
+  <div id="printSheet" aria-hidden="true"></div>
+
+  <script src="vendor/d3.min.js"></script>
+  <script src="db.js"></script>
+  <script src="map.js"></script>
+</body>
+</html>
